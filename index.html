@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Shaka Player en Kodular</title>
+    <meta charset="utf-8" />
+    <meta name="referrer" content="no-referrer" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.14.10/dist/shaka-player.ui.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/shaka-player@4.14.10/dist/controls.min.css" rel="stylesheet">
+
+    <link href="https://fonts.googleapis.com/css?family=Material+Icons+Sharp" rel="stylesheet">
+    <link rel='stylesheet' type='text/css' href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/crypto-js.js"></script>
+
+    <style>
+        @import "https://fonts.googleapis.com/css?family=Play:300,400,700";
+        @import "https://fonts.googleapis.com/css?family=Monda:300,400,700";
+        @import "https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,700";
+        body {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: 0;
+            left: 0;
+            background-color: #000;
+            margin: 0;
+            font-family: monda, sans-serif, source sans pro, Helvetica, Arial, sans-serif !important;
+            color: #fff; /* Cambiado a blanco para que el texto sea visible en fondo negro */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Ajustes para el video player */
+        #youtube-theme { /* Cambiado de #player a #youtube-theme para coincidir con tu ID de video */
+            width: 100vw;
+            height: 100vh; /* Ocupa toda la altura disponible */
+            max-height: 100vh;
+            max-width: 177.78vh; /* Para mantener el aspecto 16:9 si la ventana es más ancha */
+            margin: auto;
+            object-fit: contain; /* Para que el video se ajuste sin recortarse */
+            background-color: #000;
+        }
+    </style>
+</head>
+<body>
+    <section id="wrap">
+        <div class="youtube-theme">
+            <video autoplay autostart="true" data-shaka-player poster="/img/tv-static.gif" id="youtube-theme"></video>
+        </div>
+    </section>
+
+    <script type="text/javascript">
+        // La URL de tu manifiesto (DASH o HLS)
+        const youtube_theme_manifestUri = 'https://sam-py-edge05.tigo.com.py/ccur-session/7f6e3fdb59994965abed8dd5c6faccf517487270122031b65a320aeed11ebae01d90082191a3c1a5MrOL1SVX7zpX7GuV2tRmo/VMX4_widevine/rolling-buffer/TigoSportsHD/TigoSportsHD/transmux/index.mpd';
+
+        async function init() {
+            // Instala los polyfills para compatibilidad
+            shaka.polyfill.installAll();
+
+            const video = document.getElementById('youtube-theme');
+            const ui = video['ui'];
+            const config = {
+                'seekBarColors': {
+                    base: 'rgba(255,255,255,.2)',
+                    buffered: 'rgba(255,255,255,.4)',
+                    played: 'rgb(255,0,0)',
+                }
+            };
+            ui.configure(config);
+
+            const controls = ui.getControls();
+            const player = controls.getPlayer();
+
+            // Configuración de DRM (Clear Keys)
+            player.configure({
+                drm: {
+                    clearKeys: {
+                        "b52a7fa91fb031a3d6f2a505414b6fcd": "a655a22f9c0a66574b5d95dee212fbf9",
+                    }
+                }
+            });
+
+            // Adjunta player y ui a la ventana para fácil acceso en la consola
+            window.player = player;
+            window.ui = ui;
+
+            // Escucha eventos de error
+            player.addEventListener('error', onPlayerErrorEvent);
+            controls.addEventListener('error', onUIErrorEvent);
+
+            try {
+                await player.load(youtube_theme_manifestUri);
+                console.log('El video se ha cargado!');
+            } catch (error) {
+                onPlayerError(error);
+            }
+        }
+
+        function onPlayerErrorEvent(errorEvent) {
+            onPlayerError(errorEvent.detail);
+        }
+
+        function onPlayerError(error) {
+            console.error('Shaka Player Error - Code:', error.code, 'Object:', error);
+            // Podrías mostrar un mensaje en el WebView aquí
+            // Por ejemplo: video.parentNode.innerHTML = '<p style="color:red;">Error al cargar el video: ' + error.code + '</p>';
+        }
+
+        function onUIErrorEvent(errorEvent) {
+            onPlayerError(errorEvent.detail);
+        }
+
+        function initFailed(errorEvent) {
+            console.error('No se pudo cargar la librería UI de Shaka Player!', errorEvent);
+            // Podrías mostrar un mensaje de error si Shaka no es compatible
+        }
+
+        document.addEventListener('shaka-ui-loaded', init);
+        document.addEventListener('shaka-ui-load-failed', initFailed);
+
+        // Si realmente necesitas estas líneas y tienes jQuery, asegúrate de que jQuery esté cargado ANTES
+        // if (typeof $ !== 'undefined') { // Solo ejecuta si jQuery está disponible
+        //     $('.shaka-overflow-menu-button').html('settings');
+        //     $('.shaka-back-to-overflow-button .material-icons-round').html('arrow_back_ios_new');
+        // }
+    </script>
+</body>
+</html>
