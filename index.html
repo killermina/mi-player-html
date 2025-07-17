@@ -131,3 +131,25 @@ function onPlayerErrorEvent(errorEvent) {
 function onPlayerError(error) {
   // Handle player error
   console.error('Error code', error.code, 'object', error);
+}
+
+function onUIErrorEvent(errorEvent) {
+  // Extract the shaka.util.Error object from the event.
+  onPlayerError(event.detail);
+}
+
+function initFailed(errorEvent) {
+  // Handle the failure to load; errorEvent.detail.reasonCode has a
+  // shaka.ui.FailReasonCode describing why.
+  console.error('Unable to load the UI library!');
+}
+    // TODO find a way to do this without jquery. -___- or find a way to replace them CSS. maybe usering :after  
+    $('.shaka-overflow-menu-button').html('settings');
+    $('.shaka-back-to-overflow-button .material-icons-round').html('arrow_back_ios_new');
+}
+document.addEventListener('shaka-ui-loaded', init);
+// Listen to the custom shaka-ui-load-failed event, in case Shaka Player fails
+// to load (e.g. due to lack of browser support).
+document.addEventListener('shaka-ui-load-failed', initFailed);
+</script>
+  </body>
