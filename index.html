@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Shaka Player en Kodular - Control Manual</title>
+    <title>Shaka Player en Kodular - Discreto</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
@@ -41,7 +41,10 @@
         #videoPlayer {
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: contain; /* Mantiene el aspecto, con barras negras si es necesario */
+            /* Si quieres que el video llene toda la pantalla y se recorte si es necesario, usa:
+            object-fit: cover;
+            */
             background-color: black;
         }
 
@@ -55,22 +58,22 @@
             font-size: 28px;
             color: white;
             background-color: rgba(0, 0, 0, 0.7);
-            border: 2px solid #FF0000; /* Borde rojo como referencia a Shaka/YouTube */
+            border: 2px solid #FF0000;
             border-radius: 10px;
             cursor: pointer;
-            z-index: 100; /* Asegura que esté por encima del video */
-            display: flex; /* Para centrar el texto/icono si lo tuviera */
+            z-index: 100;
+            display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
-            outline: none; /* Quita el contorno de foco por defecto */
+            outline: none;
         }
         #playButton:focus {
-            border-color: #00BFFF; /* Color de borde al enfocar */
-            box-shadow: 0 0 10px #00BFFF; /* Sombra al enfocar */
+            border-color: #00BFFF;
+            box-shadow: 0 0 10px #00BFFF;
         }
 
-        /* Estilos para los mensajes de depuración */
+        /* Estilos para los mensajes de depuración (OCULTO POR DEFECTO) */
         #debugLog {
             position: absolute;
             bottom: 10px;
@@ -83,6 +86,7 @@
             z-index: 101;
             max-width: 90%;
             overflow-x: auto;
+            display: none; /* <-- MODIFICACIÓN: Oculto por defecto */
         }
     </style>
 </head>
@@ -97,6 +101,8 @@
         function logToKodular(message) {
             const debugLogElement = document.getElementById('debugLog');
             if (debugLogElement) {
+                // Si quieres que el log sea visible para depurar, cambia 'none' a 'block' aquí temporalmente
+                debugLogElement.style.display = 'none'; // Asegura que esté oculto
                 debugLogElement.textContent = message;
             }
             if (window.AppInventor && window.AppInventor.setWebViewString) {
@@ -107,9 +113,7 @@
         }
 
         // Utiliza la URL de tu manifiesto que estaba funcionando o la última que probaste.
-        // Si no estás seguro, usa una URL de prueba de Shaka Player para verificar la funcionalidad base.
         const manifestUri = 'https://sam-py-edge05.tigo.com.py/ccur-session/7f6e3fdb59994965abed8dd5c6faccf517487270122031b65a320aeed11ebae01d90082191a3c1a5MrOL1SVX7zpX7GuV2tRmo/VMX4_widevine/rolling-buffer/TigoSportsPlusHD/TigoSportsPlusHD/transmux/index.mpd';
-        // const manifestUri = 'https://dash.akamaized.net/dash264/TestCases/1c/qualcomm/2/MultiRate.mpd'; // URL de prueba sin DRM
         
         // Claves DRM (verifica que sigan siendo correctas para tu stream)
         const clearKeys = {
@@ -131,66 +135,52 @@
             }
             logToKodular('3. Elemento de video (' + video.id + ') obtenido.');
 
-            // Crea una nueva instancia de Shaka Player.
             const player = new shaka.Player(video);
-            window.player = player; // Acceso global para control desde Kodular
+            window.player = player;
 
             logToKodular('4. Instancia de Shaka Player creada.');
 
-            // 1. Modificación: Configurar Shaka Player para no enviar Referer
             player.configure({
                 drm: { clearKeys: clearKeys },
-                // Configuración del fetcher para no enviar el Referer
-                // Esto aplica a todas las peticiones que Shaka Player haga (manifiesto, segmentos, etc.)
-                // NOTA: 'no-referrer' en la meta tag es para peticiones del navegador (CSS, JS).
-                // Para peticiones de Shaka Player, se usa fetcherFactory.
-                http: {
-                    // Esta configuración elimina el header 'Referer' de las peticiones HTTP/HTTPS que hace Shaka Player.
-                    // Si tienes problemas de CORS o acceso, esto puede ayudar, pero a veces los servidores
-                    // requieren un referer válido.
+                http: { // <-- ¡CORREGIDO! Sin el punto antes de 'http'
                     fetcherFactory: (url, type, request) => {
                         return shaka.net.HttpFetch(url, request);
                     },
-                    // shaka.net.HttpFetch ya tiene la opción de no enviar referer si el 'referrer' meta tag es 'no-referrer'
-                    // pero si necesitas control más granular, puedes modificar los headers directamente:
-                    // requestFilter: (type, request) => {
-                    //     if (request.headers['Referer']) {
-                    //         delete request.headers['Referer'];
-                    //     }
-                    // }
+                    requestFilter: (type, request) => {
+                        if (request.headers['Referer']) {
+                            delete request.headers['Referer'];
+                        }
+                    }
                 }
             });
             logToKodular('5. Configuración de DRM y no-referrer para fetcher aplicada.');
 
-            // Añade un oyente de eventos para capturar los errores del reproductor.
             player.addEventListener('error', onPlayerErrorEvent);
             logToKodular('6. Listener de errores añadido.');
 
-            // 2. Modificación: Reproducción controlada por botón
-            playButton.style.display = 'block'; // Asegura que el botón de play sea visible
-            playButton.focus(); // Intenta enfocar el botón para el control de TV
+            playButton.style.display = 'block';
+            playButton.focus();
 
             playButton.onclick = async () => {
                 logToKodular('Botón de Play presionado. Intentando cargar y reproducir...');
-                playButton.style.display = 'none'; // Oculta el botón una vez presionado
+                playButton.style.display = 'none';
 
                 try {
                     await player.load(manifestUri);
                     logToKodular('7. Manifiesto cargado con éxito!');
-                    await video.play(); // Inicia la reproducción
-                    video.muted = false; // Desmutea el video después de la interacción
+                    await video.play();
+                    video.muted = false;
                     logToKodular('8. Video reproduciendo y desmuteado.');
 
                 } catch (error) {
                     onPlayerError(error);
                     logToKodular('ERROR FATAL al cargar/reproducir: Código ' + error.code + ', Mensaje: ' + error.message + '. Objeto error: ' + JSON.stringify(error));
-                    playButton.style.display = 'block'; // Vuelve a mostrar el botón si hay error
+                    playButton.style.display = 'block';
                     playButton.textContent = '❌ Error. Reintentar?';
                 }
             };
         }
 
-        // --- Funciones de manejo de errores ---
         function onPlayerErrorEvent(event) {
             onPlayerError(event.detail);
         }
@@ -200,24 +190,20 @@
             const errorMessage = 'Shaka Error: Código ' + (error.code || 'N/A') + ', Mensaje: ' + (error.message || 'N/A') + ', Severity: ' + (error.severity || 'N/A');
             logToKodular(errorMessage);
 
-            // Mostrar un mensaje de error visible en la pantalla del WebView
             const errorContainer = document.createElement('div');
             errorContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); color: red; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 20px; padding: 20px; box-sizing: border-box; z-index: 200;';
             errorContainer.innerHTML = '<h1>Error de Reproducción</h1><p>'+ errorMessage +'</p><p>Intenta de nuevo o verifica tu conexión.</p>';
             document.body.appendChild(errorContainer);
         }
-        // ------------------------------------
 
-        // Asegúrate de que el DOM esté completamente cargado antes de inicializar Shaka Player.
         document.addEventListener('DOMContentLoaded', initApp);
 
-        // --- Funciones para control desde Kodular (opcional) ---
-        // Puedes llamar a estas funciones usando WebViewer.Run Javascript en Kodular.
+        // Funciones para control desde Kodular
         window.startVideoFromKodular = function() {
             logToKodular('Llamada externa: Iniciar Video.');
             const playButton = document.getElementById('playButton');
             if (playButton) {
-                playButton.click(); // Simula un click en el botón de play
+                playButton.click();
             }
         };
 
@@ -229,7 +215,7 @@
             }
         };
 
-        window.playVideo = function() { // Renombrada para evitar conflicto si se usa `startVideoFromKodular`
+        window.playVideo = function() {
             const video = document.getElementById('videoPlayer');
             if (video && video.paused) {
                 video.play().then(() => {
@@ -245,6 +231,15 @@
             if (video && !video.paused) {
                 video.pause();
                 logToKodular('Video pausado desde Kodular.');
+            }
+        };
+
+        // Función para mostrar/ocultar el log de depuración desde Kodular (opcional)
+        window.toggleDebugLog = function() {
+            const debugLogElement = document.getElementById('debugLog');
+            if (debugLogElement) {
+                debugLogElement.style.display = debugLogElement.style.display === 'none' ? 'block' : 'none';
+                logToKodular('Debug Log: ' + (debugLogElement.style.display === 'none' ? 'Oculto' : 'Visible'));
             }
         };
     </script>
